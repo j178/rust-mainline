@@ -515,6 +515,7 @@ function CommitCard({
                 aria-label={`Open pull request ${item.pr} on GitHub`}
               >
                 #{item.pr}
+                <ExternalArrow />
               </a>
             )}
             <a
@@ -611,7 +612,14 @@ export function HistoryExplorer() {
 
       <section className="history-view" aria-labelledby="history-title">
         <div className="view-header">
-          <h1 id="history-title">Recent commits</h1>
+          <div className="view-heading">
+            <h1 id="history-title">Rust Mainline</h1>
+            <p>
+              Follow the commits that actually land on rust-lang/rust&rsquo;s main branch,
+              without the intermediate commits from unsquashed pull requests. Expand a
+              rollup to see every PR it carried.
+            </p>
+          </div>
           <div className="toolbar">
             <label className="search-field">
               <span className="visually-hidden">Search loaded commits</span>

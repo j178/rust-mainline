@@ -199,6 +199,18 @@ main {
   line-height: 1;
 }
 
+.view-heading {
+  max-width: 690px;
+}
+
+.view-heading p {
+  max-width: 650px;
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .toolbar {
   width: min(420px, 45%);
 }
@@ -421,12 +433,36 @@ main {
   color: #59554e;
 }
 
+.pr-number,
+.commit-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 0;
+  letter-spacing: 0;
+  transition: color 120ms ease;
+}
+
 .pr-number {
   color: var(--rust-dark);
   text-decoration: underline;
   text-decoration-color: transparent;
   text-underline-offset: 3px;
   transition: color 120ms ease, text-decoration-color 120ms ease;
+}
+
+.commit-ref {
+  color: var(--faint);
+  text-transform: lowercase;
+}
+
+.pr-number .external-arrow,
+.commit-ref .external-arrow {
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+  transform: translate(-2px, 1px);
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .pr-number:hover,
@@ -436,31 +472,14 @@ main {
   text-decoration-color: currentColor;
 }
 
-.commit-ref {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 0;
-  color: var(--faint);
-  letter-spacing: 0;
-  text-transform: lowercase;
-  transition: color 120ms ease;
-}
-
-.commit-ref .external-arrow {
-  width: 8px;
-  height: 8px;
-  opacity: 0;
-  transform: translate(-2px, 1px);
-  transition: opacity 120ms ease, transform 120ms ease;
-}
-
 .commit-ref:hover,
 .commit-ref:focus-visible {
   color: var(--ink);
   outline: none;
 }
 
+.pr-number:hover .external-arrow,
+.pr-number:focus-visible .external-arrow,
 .commit-ref:hover .external-arrow,
 .commit-ref:focus-visible .external-arrow {
   opacity: 1;
@@ -928,7 +947,7 @@ main {
 .rollup-index {
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 650;
   letter-spacing: 0.05em;
   text-align: center;
@@ -942,16 +961,16 @@ main {
 
 .rollup-copy strong {
   min-width: 0;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 580;
-  line-height: 1.4;
+  line-height: 1.42;
   overflow-wrap: anywhere;
 }
 
 .rollup-copy span {
   color: var(--muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
 }
 
 .rollup-entry > .external-arrow {
@@ -1334,6 +1353,7 @@ footer p {
     font-size: 10.5px;
   }
 
+  .pr-number .external-arrow,
   .commit-ref .external-arrow {
     display: none;
   }
@@ -1380,7 +1400,7 @@ footer p {
   }
 
   .rollup-copy strong {
-    font-size: 13.5px;
+    font-size: 15px;
   }
 
   .rollup-entry-wrap > .detail-popover {
