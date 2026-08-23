@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
@@ -13,6 +13,7 @@ import {
 
 const pullRequestDetailsCache = new Map<number, PullRequestDetails>();
 const pullRequestDetailsRequests = new Map<number, Promise<PullRequestDetails>>();
+const HOVERCARD_WARMUP_MS = 500;
 
 const utcDayFormatter = new Intl.DateTimeFormat("en", {
   month: "short",
@@ -123,7 +124,13 @@ function MarkdownInline({ children }: { children: string }) {
   );
 }
 
-function MarkdownBody({ children }: { children: string }) {
+function MarkdownBody({
+  children,
+  onDismiss,
+}: {
+  children: string;
+  onDismiss?: () => void;
+}) {
   return (
     <div className="markdown-body">
       <ReactMarkdown
@@ -131,7 +138,16 @@ function MarkdownBody({ children }: { children: string }) {
         skipHtml
         components={{
           a: ({ children: linkText, href }) => (
-            <a href={href} target="_blank" rel="noreferrer">
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              onKeyDown={(event) => {
+                if (event.key !== "Escape" || !onDismiss) return;
+                event.preventDefault();
+                onDismiss();
+              }}
+            >
               {linkText}
             </a>
           ),
@@ -190,6 +206,7 @@ function DetailPopover({
   meta,
   body,
   markdown = false,
+  onDismiss,
 }: {
   id: string;
   label?: string;
@@ -197,6 +214,7 @@ function DetailPopover({
   meta?: string;
   body: string;
   markdown?: boolean;
+  onDismiss?: () => void;
 }) {
   return (
     <div className="detail-popover" id={id} role={markdown ? undefined : "tooltip"}>
@@ -208,7 +226,7 @@ function DetailPopover({
           </strong>
         )}
         {meta && <span className="detail-meta">{meta}</span>}
-        {markdown ? <MarkdownBody>{body}</MarkdownBody> : <pre>{body}</pre>}
+        {markdown ? <MarkdownBody onDismiss={onDismiss}>{body}</MarkdownBody> : <pre>{body}</pre>}
       </div>
     </div>
   );
@@ -217,17 +235,31 @@ function DetailPopover({
 function CommitTitle({ item }: { item: HistoryItem }) {
   const messageId = `commit-message-${item.sha}`;
   const [isOpen, setIsOpen] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const titleUrl = item.pr ? `${RUST_REPO}/pull/${item.pr}` : item.url;
+
+  function toggleMessage() {
+    const nextOpen = !isOpen;
+    setIsOpen(nextOpen);
+    setIsDismissed(!nextOpen);
+  }
+
+  function resumePreview(previousTarget: EventTarget | null) {
+    if (!(previousTarget instanceof Node) || !previewRef.current?.contains(previousTarget)) {
+      setIsDismissed(false);
+    }
+  }
+
+  function dismissPreview() {
+    setIsOpen(false);
+    setIsDismissed(true);
+  }
 
   return (
     <div
-      className={`commit-title-preview ${isOpen ? "is-open" : ""}`}
-      onBlur={(event) => {
-        const nextTarget = event.relatedTarget;
-        if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
-          setIsOpen(false);
-        }
-      }}
+      ref={previewRef}
+      className={`commit-title-preview ${isOpen ? "is-open" : ""} ${isDismissed ? "is-dismissed" : ""}`}
     >
       <h2>
         <a
@@ -236,6 +268,11 @@ function CommitTitle({ item }: { item: HistoryItem }) {
           target="_blank"
           rel="noreferrer"
           aria-describedby={messageId}
+          onMouseEnter={() => setIsDismissed(false)}
+          onFocus={(event) => resumePreview(event.relatedTarget)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") dismissPreview();
+          }}
         >
           <MarkdownInline>{item.title}</MarkdownInline>
         </a>
@@ -245,9 +282,11 @@ function CommitTitle({ item }: { item: HistoryItem }) {
           aria-controls={messageId}
           aria-expanded={isOpen}
           aria-label={`${isOpen ? "Hide" : "Show"} commit message`}
-          onClick={() => setIsOpen((current) => !current)}
+          onClick={toggleMessage}
+          onMouseEnter={() => setIsDismissed(false)}
+          onFocus={(event) => resumePreview(event.relatedTarget)}
           onKeyDown={(event) => {
-            if (event.key === "Escape") setIsOpen(false);
+            if (event.key === "Escape") dismissPreview();
           }}
         >
           <span className="message-hint" aria-hidden="true">•••</span>
@@ -288,7 +327,15 @@ function RollupEntryLink({
   const cached = pullRequestDetailsCache.get(entry.pr) ?? null;
   const [details, setDetails] = useState<PullRequestDetails | null>(cached);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "error">("idle");
+  const [isDismissed, setIsDismissed] = useState(false);
+  const loadTimer = useRef<number | null>(null);
+  const triggerRef = useRef<HTMLAnchorElement>(null);
+  const restoringFocus = useRef(false);
   const detailsId = `pull-details-${rollupPr ?? "rollup"}-${entry.pr}`;
+
+  useEffect(() => () => {
+    if (loadTimer.current !== null) window.clearTimeout(loadTimer.current);
+  }, []);
 
   function loadDetails() {
     if (details || loadState === "loading") return;
@@ -301,6 +348,28 @@ function RollupEntryLink({
       .catch(() => setLoadState("error"));
   }
 
+  function scheduleDetails() {
+    setIsDismissed(false);
+    if (details || loadState === "loading" || loadTimer.current !== null) return;
+    loadTimer.current = window.setTimeout(() => {
+      loadTimer.current = null;
+      loadDetails();
+    }, HOVERCARD_WARMUP_MS);
+  }
+
+  function cancelScheduledDetails() {
+    if (loadTimer.current === null) return;
+    window.clearTimeout(loadTimer.current);
+    loadTimer.current = null;
+  }
+
+  function dismissDetails() {
+    setIsDismissed(true);
+    if (document.activeElement === triggerRef.current) return;
+    restoringFocus.current = true;
+    triggerRef.current?.focus();
+  }
+
   const detailBody = details
     ? details.body || "No PR description was provided."
     : loadState === "error"
@@ -308,15 +377,28 @@ function RollupEntryLink({
       : "Loading PR details…";
 
   return (
-    <div className="rollup-entry-wrap">
+    <div className={`rollup-entry-wrap ${isDismissed ? "is-dismissed" : ""}`}>
       <a
+        ref={triggerRef}
         className={`rollup-entry ${entry.status === "failed" ? "failed" : ""}`}
         href={`${RUST_REPO}/pull/${entry.pr}`}
         target="_blank"
         rel="noreferrer"
         aria-describedby={detailsId}
-        onMouseEnter={loadDetails}
-        onFocus={loadDetails}
+        onMouseEnter={scheduleDetails}
+        onMouseLeave={cancelScheduledDetails}
+        onFocus={() => {
+          if (restoringFocus.current) {
+            restoringFocus.current = false;
+          } else {
+            setIsDismissed(false);
+          }
+          cancelScheduledDetails();
+          loadDetails();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") dismissDetails();
+        }}
       >
         <span className="rollup-index">{indexLabel}</span>
         <span className="rollup-copy">
@@ -334,6 +416,7 @@ function RollupEntryLink({
         meta={details ? `PR #${entry.pr} · @${details.author}` : `PR #${entry.pr}`}
         body={detailBody}
         markdown
+        onDismiss={dismissDetails}
       />
     </div>
   );

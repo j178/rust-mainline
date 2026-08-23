@@ -14,6 +14,9 @@
   --failure: #a33d34;
   --tooltip: #24231f;
   --tooltip-muted: #bdb7ae;
+  --hovercard-warmup: 500ms;
+  --hovercard-cooldown: 220ms;
+  --hovercard-fade: 110ms;
   --font-sans: var(--font-geist-sans, -apple-system), BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: var(--font-geist-mono, "SFMono-Regular"), Consolas, monospace;
 }
@@ -604,18 +607,19 @@ main {
   visibility: hidden;
   transform: translateY(-5px);
   transition:
-    opacity 110ms ease 280ms,
-    transform 110ms ease 280ms,
-    visibility 0s linear 390ms;
+    opacity var(--hovercard-fade) ease var(--hovercard-cooldown),
+    transform var(--hovercard-fade) ease var(--hovercard-cooldown),
+    visibility 0s linear calc(var(--hovercard-cooldown) + var(--hovercard-fade));
 }
 
 .commit-title-preview.is-open > .detail-popover,
+.commit-title-preview:focus-within > .detail-popover,
 .rollup-entry:focus + .detail-popover,
 .rollup-entry-wrap:focus-within > .detail-popover {
   opacity: 1;
   visibility: visible;
   transform: translateY(0);
-  transition-delay: 70ms, 70ms, 0s;
+  transition-delay: 0ms, 0ms, 0ms;
 }
 
 .detail-panel {
@@ -1147,13 +1151,19 @@ footer p {
 }
 
 @media (hover: hover) {
-  .commit-title-preview:hover > .detail-popover,
-  .commit-title-preview:focus-within > .detail-popover,
-  .rollup-entry-wrap:hover > .detail-popover {
+  .commit-title-preview:not(.is-dismissed):has(
+    .commit-title-link:hover,
+    .commit-message-trigger:hover,
+    .detail-popover:hover
+  ) > .detail-popover,
+  .rollup-entry-wrap:not(.is-dismissed):hover > .detail-popover {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
-    transition-delay: 70ms, 70ms, 0s;
+    transition-delay:
+      var(--hovercard-warmup),
+      var(--hovercard-warmup),
+      var(--hovercard-warmup);
   }
 }
 
@@ -1344,7 +1354,8 @@ footer p {
     transition: max-height 180ms ease, margin 180ms ease, opacity 140ms ease;
   }
 
-  .commit-title-preview.is-open > .detail-popover {
+  .commit-title-preview.is-open > .detail-popover,
+  .commit-title-preview:focus-within > .detail-popover {
     max-height: 360px;
     margin-top: 12px;
     opacity: 1;
@@ -1398,6 +1409,16 @@ footer p {
   footer {
     justify-content: flex-start;
   }
+}
+
+.commit-title-preview.is-dismissed > .detail-popover,
+.rollup-entry-wrap.is-dismissed > .detail-popover {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-5px);
+  transition-delay: 0ms, 0ms, var(--hovercard-fade);
 }
 
 @media (prefers-reduced-motion: reduce) {
