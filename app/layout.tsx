@@ -20,8 +20,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const imageUrl = `${protocol}://${host}/og.png`;
 
   return {
-    title: "Rust Mainline — A cleaner rust-lang/rust history",
-    description: "First-parent commit history for rust-lang/rust, with expandable rollups and noisy inner commits folded away.",
+    title: "Rust Mainline",
+    description:
+      "Recent first-parent commits from rust-lang/rust, with rollups that expand into their included pull requests.",
     icons: {
       icon: [
         { url: "/favicon.ico", sizes: "any" },
@@ -30,23 +31,23 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
     },
     openGraph: {
-      title: "Rust / Mainline",
-      description: "A cleaner history of rust-lang/rust.",
+      title: "Rust Mainline",
+      description: "Recent first-parent commits from rust-lang/rust.",
       type: "website",
       images: [{ url: imageUrl, width: 1728, height: 900, alt: "Rust Mainline commit history" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Rust / Mainline",
-      description: "A cleaner history of rust-lang/rust.",
+      title: "Rust Mainline",
+      description: "Recent first-parent commits from rust-lang/rust.",
       images: [imageUrl],
     },
   };
 }
 
 export const viewport: Viewport = {
-  themeColor: "#12110f",
-  colorScheme: "dark",
+  themeColor: "#efede7",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

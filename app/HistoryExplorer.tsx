@@ -165,12 +165,41 @@ function DetailPopover({
 
 function CommitTitle({ item }: { item: HistoryItem }) {
   const messageId = `commit-message-${item.sha}`;
+  const [isOpen, setIsOpen] = useState(false);
+  const titleUrl = item.pr ? `${RUST_REPO}/pull/${item.pr}` : item.url;
 
   return (
-    <div className="commit-title-preview">
+    <div
+      className={`commit-title-preview ${isOpen ? "is-open" : ""}`}
+      onBlur={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+          setIsOpen(false);
+        }
+      }}
+    >
       <h2>
-        <button type="button" className="commit-message-trigger" aria-describedby={messageId}>
+        <a
+          className="commit-title-link"
+          href={titleUrl}
+          target="_blank"
+          rel="noreferrer"
+          aria-describedby={messageId}
+        >
           {item.title}
+        </a>
+        <button
+          type="button"
+          className="commit-message-trigger"
+          aria-controls={messageId}
+          aria-expanded={isOpen}
+          aria-label={`${isOpen ? "Hide" : "Show"} commit message`}
+          onClick={() => setIsOpen((current) => !current)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setIsOpen(false);
+          }}
+        >
+          <span className="message-hint" aria-hidden="true">•••</span>
         </button>
       </h2>
       <DetailPopover id={messageId} body={item.message} />
@@ -181,14 +210,9 @@ function CommitTitle({ item }: { item: HistoryItem }) {
 function CommitMeta({ item }: { item: HistoryItem }) {
   return (
     <div className="commit-meta">
-      <span className="identity">
-        <span className="avatar" aria-hidden="true">
-          {item.author.slice(0, 1).toUpperCase()}
-        </span>
-        <strong>{item.author}</strong>
+      <span>
+        by <strong>{item.author}</strong>
       </span>
-      <span className="meta-separator">→</span>
-      <span>main</span>
       {item.reviewers.length > 0 && (
         <>
           <span className="meta-separator">·</span>
@@ -339,8 +363,11 @@ function CommitCard({
       <span className="timeline-node" aria-hidden="true" />
       <div className="commit-heading">
         <div className="commit-heading-copy">
-          <p className="pr-label">
-            <span>{item.pr ? `${isRollup ? "ROLLUP PR" : "PR"} #${item.pr}` : "MAINLINE COMMIT"}</span>
+          <p className="commit-labels">
+            <span className="commit-kind">
+              {isRollup ? "Rollup" : item.pr ? "Merged PR" : "Commit"}
+            </span>
+            {item.pr && <span className="pr-number">#{item.pr}</span>}
             <a
               className="commit-ref"
               href={item.url}
@@ -349,6 +376,7 @@ function CommitCard({
               aria-label={`Open commit ${item.sha.slice(0, 7)} on GitHub`}
             >
               {item.sha.slice(0, 7)}
+              <ExternalArrow />
             </a>
           </p>
           {isRollup ? <RollupList item={item} /> : <CommitTitle item={item} />}
@@ -357,15 +385,6 @@ function CommitCard({
           <time className="commit-time" dateTime={item.date} title={exactCommitTime}>
             {formatRelativeTime(item.date, now)}
           </time>
-          <a
-            className="open-commit"
-            href={item.url}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`Open commit ${item.sha.slice(0, 7)} on GitHub`}
-          >
-            <ExternalArrow />
-          </a>
         </div>
       </div>
 
@@ -441,30 +460,29 @@ export function HistoryExplorer() {
         </a>
       </header>
 
-      <section className="history-shell" aria-labelledby="history-title">
-        <div className="history-intro">
+      <section className="history-view" aria-labelledby="history-title">
+        <div className="view-header">
           <h1 id="history-title">Recent commits</h1>
-        </div>
-
-        <div className="toolbar">
-          <label className="search-field">
-            <span className="visually-hidden">Search loaded commits</span>
-            <span aria-hidden="true" className="search-icon">⌕</span>
-            <input
-              type="search"
-              placeholder={
-                loadState === "loading"
-                  ? "Loading latest commits…"
-                  : "Search PR, author, title, SHA…"
-              }
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              disabled={loadState !== "ready"}
-            />
-            {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label="Clear search">×</button>
-            )}
-          </label>
+          <div className="toolbar">
+            <label className="search-field">
+              <span className="visually-hidden">Search loaded commits</span>
+              <span aria-hidden="true" className="search-icon" />
+              <input
+                type="search"
+                placeholder={
+                  loadState === "loading"
+                    ? "Loading latest commits…"
+                    : "Search PR, author, title, SHA…"
+                }
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                disabled={loadState !== "ready"}
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery("")} aria-label="Clear search">×</button>
+              )}
+            </label>
+          </div>
         </div>
 
         <div className="timeline">
@@ -477,16 +495,18 @@ export function HistoryExplorer() {
             const showDay = currentDay !== previousDay;
             return (
               <div className="timeline-entry" key={item.sha}>
-                {showDay && (
-                  <div className="day-label">
-                    <span className="day-text">
-                      {(browserTimeZone ? localDayFormatter : utcDayFormatter).format(
-                        new Date(item.date),
-                      )}
-                    </span>
-                    <span className="day-marker" aria-hidden="true" />
-                  </div>
-                )}
+                <div className="day-slot">
+                  {showDay && (
+                    <div className="day-label">
+                      <span className="day-text">
+                        {(browserTimeZone ? localDayFormatter : utcDayFormatter).format(
+                          new Date(item.date),
+                        )}
+                      </span>
+                      <span className="day-marker" aria-hidden="true" />
+                    </div>
+                  )}
+                </div>
                 <CommitCard item={item} browserTimeZone={browserTimeZone} now={now} />
               </div>
             );
