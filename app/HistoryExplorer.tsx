@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   RUST_REPO,
   type HistoryItem,
@@ -106,6 +108,49 @@ function ExternalArrow() {
   return <span className="external-arrow" aria-hidden="true" />;
 }
 
+function MarkdownInline({ children }: { children: string }) {
+  return (
+    <span className="markdown-inline">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        allowedElements={["p", "strong", "em", "code", "del"]}
+        unwrapDisallowed
+        components={{ p: ({ children: paragraph }) => <>{paragraph}</> }}
+      >
+        {children}
+      </ReactMarkdown>
+    </span>
+  );
+}
+
+function MarkdownBody({ children }: { children: string }) {
+  return (
+    <div className="markdown-body">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        skipHtml
+        components={{
+          a: ({ children: linkText, href }) => (
+            <a href={href} target="_blank" rel="noreferrer">
+              {linkText}
+            </a>
+          ),
+          img: ({ alt, src }) =>
+            typeof src === "string" ? (
+              <a className="markdown-image-link" href={src} target="_blank" rel="noreferrer">
+                {alt || "View image"}
+              </a>
+            ) : (
+              <span>{alt || "Image"}</span>
+            ),
+        }}
+      >
+        {children}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 async function fetchHistoryPage(url: string, signal?: AbortSignal) {
   try {
     const response = await fetch(url, { signal });
@@ -144,20 +189,26 @@ function DetailPopover({
   title,
   meta,
   body,
+  markdown = false,
 }: {
   id: string;
   label?: string;
   title?: string;
   meta?: string;
   body: string;
+  markdown?: boolean;
 }) {
   return (
-    <div className="detail-popover" id={id} role="tooltip">
+    <div className="detail-popover" id={id} role={markdown ? undefined : "tooltip"}>
       <div className="detail-panel">
         {label && <span className="detail-label">{label}</span>}
-        {title && <strong className="detail-title">{title}</strong>}
+        {title && (
+          <strong className="detail-title">
+            <MarkdownInline>{title}</MarkdownInline>
+          </strong>
+        )}
         {meta && <span className="detail-meta">{meta}</span>}
-        <pre>{body}</pre>
+        {markdown ? <MarkdownBody>{body}</MarkdownBody> : <pre>{body}</pre>}
       </div>
     </div>
   );
@@ -186,7 +237,7 @@ function CommitTitle({ item }: { item: HistoryItem }) {
           rel="noreferrer"
           aria-describedby={messageId}
         >
-          {item.title}
+          <MarkdownInline>{item.title}</MarkdownInline>
         </a>
         <button
           type="button"
@@ -257,29 +308,34 @@ function RollupEntryLink({
       : "Loading PR details…";
 
   return (
-    <a
-      className={`rollup-entry ${entry.status === "failed" ? "failed" : ""}`}
-      href={`${RUST_REPO}/pull/${entry.pr}`}
-      target="_blank"
-      rel="noreferrer"
-      aria-describedby={detailsId}
-      onMouseEnter={loadDetails}
-      onFocus={loadDetails}
-    >
-      <span className="rollup-index">{indexLabel}</span>
-      <span className="rollup-copy">
-        <strong>{entry.title}</strong>
-        <span>PR #{entry.pr}</span>
-      </span>
+    <div className="rollup-entry-wrap">
+      <a
+        className={`rollup-entry ${entry.status === "failed" ? "failed" : ""}`}
+        href={`${RUST_REPO}/pull/${entry.pr}`}
+        target="_blank"
+        rel="noreferrer"
+        aria-describedby={detailsId}
+        onMouseEnter={loadDetails}
+        onFocus={loadDetails}
+      >
+        <span className="rollup-index">{indexLabel}</span>
+        <span className="rollup-copy">
+          <strong>
+            <MarkdownInline>{entry.title}</MarkdownInline>
+          </strong>
+          <span>PR #{entry.pr}</span>
+        </span>
+        <ExternalArrow />
+      </a>
       <DetailPopover
         id={detailsId}
         label={entry.status === "failed" ? "Failed candidate" : undefined}
         title={details?.title ?? entry.title}
         meta={details ? `PR #${entry.pr} · @${details.author}` : `PR #${entry.pr}`}
         body={detailBody}
+        markdown
       />
-      <ExternalArrow />
-    </a>
+    </div>
   );
 }
 
@@ -367,7 +423,17 @@ function CommitCard({
             <span className="commit-kind">
               {isRollup ? "Rollup" : item.pr ? "Merged PR" : "Commit"}
             </span>
-            {item.pr && <span className="pr-number">#{item.pr}</span>}
+            {item.pr && (
+              <a
+                className="pr-number"
+                href={`${RUST_REPO}/pull/${item.pr}`}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={`Open pull request ${item.pr} on GitHub`}
+              >
+                #{item.pr}
+              </a>
+            )}
             <a
               className="commit-ref"
               href={item.url}
