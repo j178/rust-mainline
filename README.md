@@ -28,10 +28,17 @@ npm run build
 
 The app uses GitHub's commits API through `/api/history`. Responses are stored
 in Cloudflare D1, so immutable commit ranges are fetched only once. The moving
-`main` ref and the CDN response each have a five-minute freshness window.
-Refreshing is request-driven rather than scheduled: the first request that
-reaches the Worker after the D1 entry expires fetches GitHub and updates the
-cache. Stale data is used if GitHub is temporarily unavailable. Set
+`main` ref has a five-minute D1 freshness window, but its HTTP response uses
+`Cache-Control: no-store` so browsers and the edge cannot add another stale
+cache layer. History addressed by commit SHA is immutable and receives a
+long-lived HTTP cache header.
+
+Server-side GitHub refresh is request-driven rather than cron-scheduled: the
+first request that reaches the Worker after the D1 entry expires fetches GitHub
+and updates the cache. The client also revalidates every five minutes while
+visible, after a back/forward-cache restore, or when a stale background tab
+becomes visible.
+Stale D1 data is used only if GitHub is temporarily unavailable. Set
 `GITHUB_TOKEN` in the hosted runtime only if higher GitHub API limits are needed.
 Rollup PR descriptions are loaded lazily through `/api/pull` when a visitor
 first hovers or focuses an entry, then persisted in D1 for later views.

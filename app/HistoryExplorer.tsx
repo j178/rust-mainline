@@ -14,6 +14,7 @@ import {
 const pullRequestDetailsCache = new Map<number, PullRequestDetails>();
 const pullRequestDetailsRequests = new Map<number, Promise<PullRequestDetails>>();
 const HOVERCARD_WARMUP_MS = 500;
+const LATEST_HISTORY_REVALIDATE_MS = 5 * 60 * 1000;
 
 const utcDayFormatter = new Intl.DateTimeFormat("en", {
   month: "short",
@@ -167,9 +168,13 @@ function MarkdownBody({
   );
 }
 
-async function fetchHistoryPage(url: string, signal?: AbortSignal) {
+async function fetchHistoryPage(
+  url: string,
+  signal?: AbortSignal,
+  cache: RequestCache = "default",
+) {
   try {
-    const response = await fetch(url, { signal });
+    const response = await fetch(url, { signal, cache });
     if (!response.ok) return null;
     return (await response.json()) as HistoryResponse;
   } catch {
@@ -549,19 +554,25 @@ export function HistoryExplorer() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [now, setNow] = useState(Date.now);
+  const lastHistoryLoadAt = useRef(0);
+  const latestRequestId = useRef(0);
 
-  const loadLatest = useCallback(async (signal?: AbortSignal) => {
-    setLoadState("loading");
-    const data = await fetchHistoryPage("/api/history?limit=9", signal);
-    if (signal?.aborted) return;
+  const loadLatest = useCallback(async (signal?: AbortSignal, showLoading = true) => {
+    const requestId = latestRequestId.current + 1;
+    latestRequestId.current = requestId;
+    if (showLoading) setLoadState("loading");
+
+    const data = await fetchHistoryPage("/api/history?limit=9", signal, "no-store");
+    if (signal?.aborted || requestId !== latestRequestId.current) return;
 
     if (!data || data.items.length === 0) {
-      setLoadState("error");
+      if (showLoading) setLoadState("error");
       return;
     }
 
     setItems(data.items);
     setNextSha(data.nextSha);
+    lastHistoryLoadAt.current = Date.now();
     setLoadState("ready");
   }, []);
 
@@ -575,6 +586,37 @@ export function HistoryExplorer() {
     const interval = window.setInterval(() => setNow(Date.now()), 60 * 1000);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    function refreshLatest() {
+      void loadLatest(undefined, false);
+    }
+
+    function refreshLatestIfStale() {
+      if (Date.now() - lastHistoryLoadAt.current >= LATEST_HISTORY_REVALIDATE_MS) {
+        refreshLatest();
+      }
+    }
+
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) refreshLatest();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") refreshLatestIfStale();
+    }
+
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") refreshLatestIfStale();
+    }, LATEST_HISTORY_REVALIDATE_MS);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [loadLatest]);
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredItems = useMemo(

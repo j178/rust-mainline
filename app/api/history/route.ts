@@ -14,6 +14,8 @@ import {
 const GITHUB_COMMITS_URL = "https://api.github.com/repos/rust-lang/rust/commits";
 const MAX_BATCHES = 3;
 const MAIN_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAIN_RESPONSE_CACHE_CONTROL = "no-store";
+const IMMUTABLE_RESPONSE_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 async function fetchGitHubCommitBatch(ref: string): Promise<GitHubCommit[]> {
   const url = new URL(GITHUB_COMMITS_URL);
@@ -107,7 +109,9 @@ export async function GET(request: Request) {
 
     return Response.json(payload, {
       headers: {
-        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=86400",
+        "Cache-Control": requestedRef === "main"
+          ? MAIN_RESPONSE_CACHE_CONTROL
+          : IMMUTABLE_RESPONSE_CACHE_CONTROL,
       },
     });
   } catch (error) {
@@ -116,7 +120,7 @@ export async function GET(request: Request) {
       { error: message },
       {
         status: 503,
-        headers: { "Cache-Control": "public, max-age=30" },
+        headers: { "Cache-Control": "no-store" },
       },
     );
   }
