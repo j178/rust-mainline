@@ -515,7 +515,6 @@ function CommitCard({
                 aria-label={`Open pull request ${item.pr} on GitHub`}
               >
                 #{item.pr}
-                <ExternalArrow />
               </a>
             )}
             <a
@@ -526,7 +525,6 @@ function CommitCard({
               aria-label={`Open commit ${item.sha.slice(0, 7)} on GitHub`}
             >
               {item.sha.slice(0, 7)}
-              <ExternalArrow />
             </a>
           </p>
           {isRollup ? <RollupList item={item} /> : <CommitTitle item={item} />}

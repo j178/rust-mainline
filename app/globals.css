@@ -435,34 +435,22 @@ main {
 
 .pr-number,
 .commit-ref {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  display: inline-block;
   padding: 3px 0;
   letter-spacing: 0;
-  transition: color 120ms ease;
-}
-
-.pr-number {
-  color: var(--rust-dark);
   text-decoration: underline;
   text-decoration-color: transparent;
   text-underline-offset: 3px;
   transition: color 120ms ease, text-decoration-color 120ms ease;
 }
 
+.pr-number {
+  color: var(--rust-dark);
+}
+
 .commit-ref {
   color: var(--faint);
   text-transform: lowercase;
-}
-
-.pr-number .external-arrow,
-.commit-ref .external-arrow {
-  width: 8px;
-  height: 8px;
-  opacity: 0;
-  transform: translate(-2px, 1px);
-  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .pr-number:hover,
@@ -476,14 +464,7 @@ main {
 .commit-ref:focus-visible {
   color: var(--ink);
   outline: none;
-}
-
-.pr-number:hover .external-arrow,
-.pr-number:focus-visible .external-arrow,
-.commit-ref:hover .external-arrow,
-.commit-ref:focus-visible .external-arrow {
-  opacity: 1;
-  transform: translate(0, 1px);
+  text-decoration-color: currentColor;
 }
 
 .commit-time {
@@ -1351,11 +1332,6 @@ footer p {
   .commit-meta {
     margin-top: 12px;
     font-size: 10.5px;
-  }
-
-  .pr-number .external-arrow,
-  .commit-ref .external-arrow {
-    display: none;
   }
 
   .message-hint {
