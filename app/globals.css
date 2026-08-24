@@ -909,26 +909,22 @@ main {
   padding: 10px 11px;
   border-radius: 5px;
   background: rgba(255, 254, 250, 0.52);
-  color: var(--ink);
-  transition: background 120ms ease, color 120ms ease;
+  transition: background 120ms ease;
 }
 
 .rollup-entry:hover,
 .rollup-entry:focus-visible {
   background: var(--surface-strong);
-  color: var(--rust-dark);
   outline: none;
 }
 
 .rollup-entry.failed {
   background: rgba(163, 61, 52, 0.055);
-  color: #6b514d;
 }
 
 .rollup-entry.failed:hover,
 .rollup-entry.failed:focus-visible {
   background: rgba(163, 61, 52, 0.1);
-  color: var(--failure);
 }
 
 .rollup-index {
@@ -948,13 +944,30 @@ main {
 
 .rollup-copy strong {
   min-width: 0;
+  color: var(--ink);
   font-size: 15.5px;
-  font-weight: 580;
-  line-height: 1.42;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
   overflow-wrap: anywhere;
+  transition: color 120ms ease;
 }
 
-.rollup-copy span {
+.rollup-entry:hover .rollup-copy strong,
+.rollup-entry:focus-visible .rollup-copy strong {
+  color: var(--rust-dark);
+}
+
+.rollup-entry.failed .rollup-copy strong {
+  color: #5d3f38;
+}
+
+.rollup-entry.failed:hover .rollup-copy strong,
+.rollup-entry.failed:focus-visible .rollup-copy strong {
+  color: var(--failure);
+}
+
+.rollup-copy > span {
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 10.5px;
